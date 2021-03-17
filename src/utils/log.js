@@ -24,11 +24,11 @@ const logger = log4js.getLogger('JD')
 // logger.fatal('this is fatal')
 
 function logInfo (str = '我是fn log') {
-  return logger.info('this is info')
+  return logger.info(str)
 }
 
 function logError (str) {
-  logger.error('this is error')
+  logger.error(str)
 }
 
 module.exports = {

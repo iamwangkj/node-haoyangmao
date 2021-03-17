@@ -1,10 +1,13 @@
-const { jdCookie } = require('./config/cookie')
-const axios = require('axios')
 const _ = require('lodash')
-// console.log('jdCookie=', jdCookie)
+const axios = require('axios')
+const axiosIns = require('./utils/request')
+const log = require('./utils/log')
+const { jdCookie } = require('./config/cookie')
 
+// 先登录拿去cookie
+
+// 添加结果
 const resList = []
-
 function addRes (task, result) {
   const item = {
     task,
@@ -13,27 +16,26 @@ function addRes (task, result) {
   resList.push(item)
 }
 
-const axiosIns = axios.create({
-  // baseURL: 'https://api.m.jd.com/',
-  headers: {
-    cookie: jdCookie
+function errorHandler (task) {
+  log.logError(`【${task}】京豆 获得失败`)
+}
+
+function successHandler (beanCount = 0, task = '未知任务') {
+  if (beanCount > 0) {
+    log.logInfo(`【${task}】京豆获得数=${beanCount}`)
+  } else {
+    errorHandler(task)
   }
-})
+}
 
 async function bean () {
   const task = '京东京豆签到'
   try {
-    const { data } = await axiosIns.get('https://api.m.jd.com/client.action?functionId=signBeanIndex&appid=ld')
-    const beanCount = _.get(data, 'data.dailyAward.beanAward.beanCount')
-    console.log('获得的京豆数=', beanCount)
-    if (beanCount >= 0) {
-      addRes(task, beanCount)
-    } else {
-      throw (Error('失败'))
-    }
+    const res = await axiosIns.get('https://api.m.jd.com/client.action?functionId=signBeanIndex&appid=ld')
+    const beanCount = _.get(res, 'data.dailyAward.beanAward.beanCount')
+    successHandler(beanCount, task)
   } catch (err) {
-    console.error('err=', err)
-    addRes(task)
+    errorHandler(task)
   }
 }
 // bean()
@@ -41,18 +43,13 @@ async function bean () {
 async function kanyikan () {
   const task = '发现-看一看'
   try {
-    const { data } = await axiosIns.get('https://api.m.jd.com/client.action?functionId=discTaskList&body=%7B%22bizType%22%3A1%2C%22referPageId%22%3A%22discRecommend%22%7D&client=apple&clientVersion=9.1.6&openudid=1fce88cd05c42fe2b054e846f11bdf33f016d676&sign=17061147fe8e0eb10edfe8d9968b6d66&st=1601138337675&sv=102')
+    const data = await axiosIns.get('https://api.m.jd.com/client.action?functionId=discTaskList&body=%7B%22bizType%22%3A1%2C%22referPageId%22%3A%22discRecommend%22%7D&client=apple&clientVersion=9.1.6&openudid=1fce88cd05c42fe2b054e846f11bdf33f016d676&sign=17061147fe8e0eb10edfe8d9968b6d66&st=1601138337675&sv=102')
     const res = _.get(data, 'data.discTasks.0.taskTitle')
     const beanCount = res.replace(/[^0-9]/ig, '')
-    console.log('获得的京豆数=', beanCount)
-    if (beanCount >= 0) {
-      addRes(task, beanCount)
-    } else {
-      throw (Error('失败'))
-    }
+    successHandler(beanCount, task)
   } catch (err) {
     console.error('err=', err.message)
-    addRes(task)
+    errorHandler(task)
   }
 }
 // kanyikan()
@@ -60,25 +57,16 @@ async function kanyikan () {
 async function chaoshi () {
   const task = '京东超市'
   try {
-    const { data } = await axios({
+    const res = await axiosIns({
       headers: {
-        cookie: jdCookie,
         Origin: 'https://jdsupermarket.jd.com'
       },
       url: 'https://api.m.jd.com/api?appid=jdsupermarket&functionId=smtg_sign&clientVersion=8.0.0&client=m&body=%7B%7D'
     })
-    console.log('请求返回的数据=', data)
-    // const beanCount = _.get(data, 'data.dailyAward.beanAward.beanCount')
-    // console.log('获得的京豆数=', beanCount)
-    if (_.get(data, 'data.success')) {
-      addRes(task, 1)
-    } else {
-      const msg = _.get(data, 'data.bizMsg')
-      throw (msg)
-    }
+    const beanCount = _.get(res, 'data.success') ? 1 : 0
+    successHandler(beanCount, task)
   } catch (err) {
-    console.error('err=', err)
-    addRes(task, err.message)
+    errorHandler(task)
   }
 }
 // chaoshi()
@@ -86,24 +74,16 @@ async function chaoshi () {
 async function zhibo () {
   const task = '京东直播'
   try {
-    const { data } = await axios({
+    const res = await axiosIns({
       headers: {
-        cookie: jdCookie,
         Origin: 'https://h.m.jd.com'
       },
       url: 'https://api.m.jd.com/api?functionId=getChannelTaskRewardToM&appid=h5-live&body=%7B%22type%22%3A%22signTask%22%2C%22itemId%22%3A%221%22%7D'
     })
-    console.log('请求返回的数据=', data)
-    // const beanCount = _.get(data, 'data.dailyAward.beanAward.beanCount')
-    // console.log('获得的京豆数=', beanCount)
-    if (data.subCode == 0) {
-      addRes(task, 1)
-    } else {
-      throw (Error(data.msg))
-    }
+    const beanCount = _.get(res, 'subCode') == -1 ? 0 : 1
+    successHandler(beanCount, task)
   } catch (err) {
-    console.error('err=', err)
-    addRes(task, err.message)
+    errorHandler(task)
   }
 }
 // zhibo()
@@ -125,7 +105,7 @@ async function zhuanpan () {
     addRes(task, err.message)
   }
 }
-// zhuanpan()
+zhuanpan()
 
 async function shangou () {
   const task = '京东闪购'
@@ -315,4 +295,4 @@ async function car (activityId) {
     addRes(task, err.message)
   }
 }
-car('5fc3c1f2e91f46f09ab2b722e10d92bf')
+// car('5fc3c1f2e91f46f09ab2b722e10d92bf')
