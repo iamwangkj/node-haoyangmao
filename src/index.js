@@ -1,0 +1,1 @@
+const jd_5g = require('./jd_5g')
